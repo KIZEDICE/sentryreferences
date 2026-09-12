@@ -1,0 +1,1504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SENTRY PINESCRIPT REFERENCES STATUS LOG</title>
+<style>
+  :root{
+    --bg: #000000;
+    --panel: #0B0B0B;
+    --panel-2: #070707;
+    --border: #1c1c1c;
+    --border-glow: rgba(0,229,255,0.25);
+    --cyan: #00E5FF;
+    --cyan-dim: rgba(0,229,255,0.35);
+    --orange: #FF7A00;
+    --orange-dim: rgba(255,122,0,0.35);
+    --white: #FFFFFF;
+    --gray: #8a8f94;
+    --gray-dim: #5c6166;
+    --red: #ff3b3b;
+    --mono: 'Consolas','SFMono-Regular','Cascadia Code','Courier New',monospace;
+    --sans: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  }
+
+  *{box-sizing:border-box;}
+
+  html,body{
+    margin:0;
+    padding:0;
+    background:var(--bg);
+    color:var(--white);
+    font-family:var(--sans);
+    min-height:100%;
+    overflow-x:hidden;
+  }
+
+  canvas.bg-layer{
+    position:fixed;
+    top:0;
+    left:0;
+    pointer-events:none;
+    z-index:0;
+  }
+
+  #starfield{ width:100vw; height:100vh; }
+  #rainLeft, #rainRight{ top:0; height:100vh; width:150px; opacity:0.55; }
+  #rainLeft{ left:0; }
+  #rainRight{ right:0; left:auto; }
+
+  .page{
+    position:relative;
+    z-index:2;
+    max-width:1180px;
+    margin:0 auto;
+    padding:28px 150px 80px;
+  }
+
+  @media (max-width: 1100px){
+    .page{ padding:24px 20px 60px; }
+    #rainLeft, #rainRight{ width:70px; opacity:0.35; }
+  }
+
+  /* ---------- HEADER ---------- */
+  header{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    flex-wrap:wrap;
+    gap:16px;
+    border-bottom:1px solid var(--border);
+    padding-bottom:18px;
+    margin-bottom:20px;
+  }
+
+  .brand{
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+  }
+
+  .wordmark{
+    font-family:var(--mono);
+    color:var(--orange);
+    letter-spacing:3px;
+    font-size:12px;
+    font-weight:700;
+    text-shadow:0 0 8px rgba(255,122,0,0.35);
+  }
+
+  h1{
+    margin:2px 0 0;
+    font-size:22px;
+    letter-spacing:1.5px;
+    font-weight:700;
+    color:var(--white);
+    text-shadow:0 0 14px rgba(0,229,255,0.15);
+  }
+
+  .subheader{
+    font-family:var(--mono);
+    font-size:12px;
+    letter-spacing:2px;
+    color:var(--cyan);
+    margin-top:2px;
+  }
+
+  .header-actions{
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+
+  button.ctrl-btn{
+    background:transparent;
+    border:1px solid var(--cyan-dim);
+    color:var(--cyan);
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:1px;
+    padding:8px 14px;
+    border-radius:3px;
+    cursor:pointer;
+    transition:all .15s ease;
+    text-transform:uppercase;
+  }
+  button.ctrl-btn:hover{
+    background:rgba(0,229,255,0.08);
+    box-shadow:0 0 10px rgba(0,229,255,0.25);
+  }
+  button.ctrl-btn.warn{
+    border-color:var(--orange-dim);
+    color:var(--orange);
+  }
+  button.ctrl-btn.warn:hover{
+    background:rgba(255,122,0,0.08);
+    box-shadow:0 0 10px rgba(255,122,0,0.25);
+  }
+
+  /* ---------- ARCHITECTURE BANNER ---------- */
+  .banner{
+    border:1px solid var(--border);
+    border-left:3px solid var(--cyan);
+    background:var(--panel-2);
+    padding:14px 18px;
+    margin-bottom:22px;
+    font-family:var(--mono);
+    font-size:12px;
+    line-height:1.9;
+    color:var(--gray);
+    letter-spacing:0.4px;
+  }
+  .banner b{ color:var(--white); }
+  .banner .neq{ color:var(--orange); }
+
+  /* ---------- SUMMARY COUNTERS ---------- */
+  .summary{
+    display:grid;
+    grid-template-columns:repeat(6,1fr);
+    gap:10px;
+    margin-bottom:22px;
+  }
+  @media (max-width: 900px){ .summary{ grid-template-columns:repeat(3,1fr); } }
+  @media (max-width: 520px){ .summary{ grid-template-columns:repeat(2,1fr); } }
+
+  .stat{
+    background:var(--panel);
+    border:1px solid var(--border);
+    padding:12px 10px;
+    text-align:center;
+    border-radius:4px;
+  }
+  .stat .num{
+    font-family:var(--mono);
+    font-size:22px;
+    font-weight:700;
+    color:var(--cyan);
+    text-shadow:0 0 10px rgba(0,229,255,0.25);
+  }
+  .stat.blocked .num{ color:var(--red); text-shadow:0 0 10px rgba(255,59,59,0.3); }
+  .stat .lbl{
+    margin-top:4px;
+    font-size:10px;
+    letter-spacing:1px;
+    color:var(--gray-dim);
+    text-transform:uppercase;
+  }
+
+  /* ---------- FILTERS ---------- */
+  .filters{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    margin-bottom:26px;
+  }
+  .filter-pill{
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:1px;
+    text-transform:uppercase;
+    color:var(--gray);
+    border:1px solid var(--border);
+    background:var(--panel-2);
+    padding:7px 13px;
+    border-radius:20px;
+    cursor:pointer;
+    transition:all .15s ease;
+  }
+  .filter-pill:hover{ color:var(--white); border-color:var(--gray); }
+  .filter-pill.active{
+    color:#000;
+    background:var(--cyan);
+    border-color:var(--cyan);
+    box-shadow:0 0 12px rgba(0,229,255,0.4);
+  }
+
+  /* ---------- SECTION HEADERS ---------- */
+  .section-title{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin:34px 0 14px;
+  }
+  .section-title .bar{ width:3px; height:16px; background:var(--cyan); }
+  .section-title.python .bar{ background:var(--orange); }
+  .section-title h2{
+    font-size:13px;
+    letter-spacing:2px;
+    text-transform:uppercase;
+    color:var(--white);
+    margin:0;
+  }
+  .section-title .count-badge{
+    font-family:var(--mono);
+    font-size:10px;
+    color:var(--gray-dim);
+  }
+
+  /* ---------- CARD GRID ---------- */
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(230px,1fr));
+    gap:12px;
+  }
+
+  .card{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:5px;
+    padding:14px;
+    cursor:pointer;
+    transition:transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+    position:relative;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+  }
+  .card:hover{
+    transform:translateY(-2px);
+    border-color:var(--cyan-dim);
+    box-shadow:0 4px 18px rgba(0,229,255,0.12);
+  }
+  .card.child-card{
+    margin-left:18px;
+    border-left:2px dashed var(--gray-dim);
+  }
+  .card.optional-card{ border-style:dashed; opacity:0.9; }
+
+  .card-top{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:8px;
+  }
+  .card-name{
+    font-size:13px;
+    font-weight:700;
+    letter-spacing:0.5px;
+    color:var(--white);
+  }
+  .card-category{
+    font-family:var(--mono);
+    font-size:9.5px;
+    letter-spacing:0.5px;
+    color:var(--gray-dim);
+    text-transform:uppercase;
+  }
+
+  .badge{
+    font-family:var(--mono);
+    font-size:9px;
+    letter-spacing:0.5px;
+    padding:3px 7px;
+    border-radius:3px;
+    white-space:nowrap;
+    text-transform:uppercase;
+    border:1px solid transparent;
+  }
+  .badge.required{ color:var(--orange); border-color:var(--orange-dim); background:rgba(255,122,0,0.06); }
+  .badge.optional{ color:var(--gray); border-color:var(--border); background:rgba(255,255,255,0.02); }
+
+  .status-pill{
+    align-self:flex-start;
+    font-family:var(--mono);
+    font-size:10px;
+    letter-spacing:0.5px;
+    padding:4px 9px;
+    border-radius:3px;
+    text-transform:uppercase;
+    border:1px solid;
+  }
+  .status-PLANNED{ color:var(--gray); border-color:var(--border); }
+  .status-IN_DEVELOPMENT{ color:var(--cyan); border-color:var(--cyan-dim); background:rgba(0,229,255,0.06); }
+  .status-READY_FOR_REVIEW{ color:var(--orange); border-color:var(--orange-dim); background:rgba(255,122,0,0.06); }
+  .status-REFERENCE_COMPLETE{ color:var(--cyan); border-color:var(--cyan); background:rgba(0,229,255,0.1); }
+  .status-TECHNICAL_FRONT_HARDENING{ color:var(--orange); border-color:var(--orange); background:rgba(255,122,0,0.08); }
+  .status-TECHNICAL_FRONT_ACCEPTED{ color:#00ffb0; border-color:#00ffb0; background:rgba(0,255,176,0.08); }
+  .status-SUPERSEDED{ color:var(--gray-dim); border-color:var(--border); text-decoration:line-through; }
+  .status-NOT_REQUIRED_FOR_V1{ color:var(--gray-dim); border-color:var(--border); }
+  .status-BLOCKED{ color:var(--red); border-color:var(--red); background:rgba(255,59,59,0.08); }
+
+  .card-purpose{
+    font-size:11.5px;
+    color:var(--gray);
+    line-height:1.5;
+  }
+
+  .card-footer{
+    display:flex;
+    justify-content:space-between;
+    font-family:var(--mono);
+    font-size:9.5px;
+    color:var(--gray-dim);
+    margin-top:2px;
+  }
+
+  /* ---------- NON-PINE CARDS ---------- */
+  .nonpine-card{ border-left:3px solid var(--orange); }
+  .nonpine-tag{
+    font-family:var(--mono);
+    font-size:9px;
+    color:var(--orange);
+    letter-spacing:1px;
+  }
+
+  /* ---------- DEPENDENCY MAP ---------- */
+  .depmap{
+    background:var(--panel-2);
+    border:1px solid var(--border);
+    border-radius:6px;
+    padding:22px 18px;
+    margin-top:14px;
+    overflow-x:auto;
+  }
+  .depmap-row{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    flex-wrap:wrap;
+    margin-bottom:14px;
+  }
+  .depnode{
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:0.5px;
+    padding:8px 12px;
+    border:1px solid var(--cyan-dim);
+    border-radius:4px;
+    color:var(--cyan);
+    background:rgba(0,229,255,0.04);
+    cursor:pointer;
+    white-space:nowrap;
+    transition:all .12s ease;
+  }
+  .depnode:hover{ box-shadow:0 0 10px rgba(0,229,255,0.35); }
+  .depnode.helper{ border-style:dashed; color:var(--gray); border-color:var(--gray-dim); background:transparent; }
+  .depnode.python{ border-color:var(--orange-dim); color:var(--orange); background:rgba(255,122,0,0.04); }
+  .depnode.terminal{ font-weight:700; }
+  .depnode.optional{ border-style:dashed; opacity:0.75; }
+  .deparrow{ color:var(--gray-dim); font-family:var(--mono); font-size:14px; }
+  .depnote{
+    font-family:var(--mono);
+    font-size:10px;
+    color:var(--gray-dim);
+    margin-top:6px;
+  }
+
+  /* ---------- YOU ARE HERE ---------- */
+  .youarehere{
+    background:var(--panel-2);
+    border:1px solid var(--border);
+    border-radius:6px;
+    padding:26px 20px 20px;
+    margin-top:14px;
+    overflow-x:auto;
+  }
+
+  .yah-track{
+    position:relative;
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    min-width:640px;
+    padding-top:34px;
+  }
+  .yah-track::before{
+    content:'';
+    position:absolute;
+    top:44px;
+    left:20px;
+    right:20px;
+    height:2px;
+    background:var(--border);
+    z-index:0;
+  }
+
+  .yah-stage{
+    position:relative;
+    z-index:1;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:8px;
+    width:100%;
+  }
+
+  .yah-dot{
+    width:18px;
+    height:18px;
+    border-radius:50%;
+    background:var(--panel);
+    border:2px solid var(--gray-dim);
+    transition:all .2s ease;
+  }
+  .yah-stage.reached .yah-dot{ border-color:var(--cyan); background:rgba(0,229,255,0.15); }
+  .yah-stage.bottleneck .yah-dot{
+    border-color:var(--orange);
+    background:var(--orange);
+    box-shadow:0 0 14px rgba(255,122,0,0.7);
+  }
+  .yah-stage.blocked .yah-dot{
+    border-color:var(--red);
+    background:var(--red);
+    box-shadow:0 0 14px rgba(255,59,59,0.7);
+  }
+
+  .yah-marker{
+    position:absolute;
+    top:-30px;
+    font-family:var(--mono);
+    font-size:9.5px;
+    letter-spacing:1px;
+    color:var(--orange);
+    white-space:nowrap;
+    animation:yahBounce 1.4s ease-in-out infinite;
+  }
+  .yah-marker.blocked{ color:var(--red); }
+  @keyframes yahBounce{
+    0%,100%{ transform:translateY(0); }
+    50%{ transform:translateY(4px); }
+  }
+
+  .yah-stage-label{
+    font-family:var(--mono);
+    font-size:9.5px;
+    letter-spacing:0.5px;
+    color:var(--gray);
+    text-transform:uppercase;
+    text-align:center;
+  }
+
+  .yah-chips{
+    display:flex;
+    flex-wrap:wrap;
+    gap:4px;
+    justify-content:center;
+    max-width:130px;
+  }
+  .yah-chip{
+    font-family:var(--mono);
+    font-size:9px;
+    padding:2px 6px;
+    border-radius:3px;
+    border:1px solid var(--border);
+    color:var(--gray);
+    background:var(--panel);
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .yah-chip:hover{ border-color:var(--cyan-dim); color:var(--white); }
+  .yah-chip.required{ border-color:var(--orange-dim); color:var(--orange); }
+
+  .yah-summary{
+    font-family:var(--mono);
+    font-size:11.5px;
+    color:var(--white);
+    margin-top:22px;
+    padding-top:14px;
+    border-top:1px solid var(--border);
+    text-align:center;
+    line-height:1.7;
+  }
+  .yah-summary .hl{ color:var(--orange); }
+  .yah-summary .hl.blocked{ color:var(--red); }
+
+  .yah-offpath{
+    margin-top:14px;
+    font-family:var(--mono);
+    font-size:10px;
+    color:var(--gray-dim);
+    text-align:center;
+  }
+  .yah-offpath .yah-chip{ margin:0 2px; }
+
+  /* ---------- MODAL ---------- */
+  .modal-overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,0.75);
+    backdrop-filter:blur(2px);
+    display:none;
+    align-items:flex-start;
+    justify-content:center;
+    z-index:50;
+    padding:5vh 16px;
+    overflow-y:auto;
+  }
+  .modal-overlay.open{ display:flex; }
+
+  .modal{
+    background:var(--panel);
+    border:1px solid var(--cyan-dim);
+    box-shadow:0 0 40px rgba(0,229,255,0.12);
+    border-radius:8px;
+    max-width:640px;
+    width:100%;
+    padding:24px 26px 26px;
+    position:relative;
+  }
+
+  .modal-close{
+    position:absolute;
+    top:14px;
+    right:16px;
+    background:none;
+    border:none;
+    color:var(--gray);
+    font-size:20px;
+    cursor:pointer;
+    line-height:1;
+  }
+  .modal-close:hover{ color:var(--cyan); }
+
+  .modal h3{
+    margin:0 0 2px;
+    font-size:17px;
+    letter-spacing:0.5px;
+    color:var(--white);
+    padding-right:24px;
+  }
+  .modal .modal-category{
+    font-family:var(--mono);
+    font-size:10.5px;
+    color:var(--gray-dim);
+    letter-spacing:1px;
+    text-transform:uppercase;
+    margin-bottom:16px;
+  }
+
+  .modal-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:14px 18px;
+    margin-bottom:16px;
+  }
+  @media (max-width:520px){ .modal-grid{ grid-template-columns:1fr; } }
+
+  .field label{
+    display:block;
+    font-family:var(--mono);
+    font-size:9.5px;
+    letter-spacing:1px;
+    color:var(--gray-dim);
+    text-transform:uppercase;
+    margin-bottom:4px;
+  }
+  .field .val{ font-size:12.5px; color:var(--white); line-height:1.4; }
+  .field select, .field input, .field textarea{
+    width:100%;
+    background:var(--panel-2);
+    border:1px solid var(--border);
+    color:var(--white);
+    font-family:var(--sans);
+    font-size:12.5px;
+    padding:7px 8px;
+    border-radius:3px;
+  }
+  .field select:focus, .field input:focus, .field textarea:focus{
+    outline:none;
+    border-color:var(--cyan-dim);
+  }
+  .field.full{ grid-column:1 / -1; }
+  .field textarea{ resize:vertical; min-height:52px; font-family:var(--sans); }
+
+  .modal-section-label{
+    font-family:var(--mono);
+    font-size:10px;
+    letter-spacing:1.5px;
+    color:var(--cyan);
+    text-transform:uppercase;
+    margin:18px 0 10px;
+    border-top:1px solid var(--border);
+    padding-top:14px;
+  }
+
+  .modal-save-note{
+    font-family:var(--mono);
+    font-size:9.5px;
+    color:var(--gray-dim);
+    margin-top:16px;
+    line-height:1.6;
+  }
+
+  /* ---------- FOOTER ---------- */
+  footer{
+    margin-top:50px;
+    border-top:1px solid var(--border);
+    padding-top:18px;
+  }
+  .final-note{
+    font-family:var(--mono);
+    font-size:12px;
+    color:var(--gray);
+    line-height:1.9;
+    text-align:center;
+  }
+  .final-note .neq{ color:var(--orange); letter-spacing:2px; }
+  .footer-meta{
+    text-align:center;
+    font-family:var(--mono);
+    font-size:9.5px;
+    color:var(--gray-dim);
+    margin-top:14px;
+  }
+</style>
+</head>
+<body>
+
+<canvas class="bg-layer" id="starfield"></canvas>
+<canvas class="bg-layer" id="rainLeft"></canvas>
+<canvas class="bg-layer" id="rainRight"></canvas>
+
+<div class="page">
+
+  <header>
+    <div class="brand">
+      <div class="wordmark">KITECH</div>
+      <h1>SENTRY PINESCRIPT REFERENCES STATUS LOG</h1>
+      <div class="subheader">KITECH / SENTRY &bull; V1 TECHNICAL FRONT</div>
+    </div>
+    <div class="header-actions">
+      <button class="ctrl-btn" id="expandAllBtn">Expand Legend</button>
+      <button class="ctrl-btn warn" id="resetBtn">Reset Demo Data</button>
+    </div>
+  </header>
+
+  <div class="banner">
+    <div><b>WP-08 ARCHITECTURE</b> = COMPLETE / FROZEN</div>
+    <div><b>TECHNICAL FRONT</b> = IN DEVELOPMENT</div>
+    <div>PINE/REFERENCE <span class="neq">!=</span> NORMATIVE SPEC</div>
+    <div><b>MACRO REGIME TARGET</b> = PYTHON INTEGRATION</div>
+  </div>
+
+  <div class="summary" id="summaryStats"></div>
+
+  <div class="filters" id="filterBar"></div>
+
+  <div class="section-title">
+    <div class="bar"></div>
+    <h2>Group A &mdash; Required / High-Priority Pine References</h2>
+    <span class="count-badge" id="groupACount"></span>
+  </div>
+  <div class="grid" id="groupAGrid"></div>
+
+  <div class="section-title">
+    <div class="bar"></div>
+    <h2>Group B &mdash; Optional / Later Pine Reference</h2>
+    <span class="count-badge" id="groupBCount"></span>
+  </div>
+  <div class="grid" id="groupBGrid"></div>
+
+  <div class="section-title python">
+    <div class="bar"></div>
+    <h2>Python / Data / Integration &mdash; Not Pine References</h2>
+  </div>
+  <div class="grid" id="nonPineGrid"></div>
+
+  <div class="section-title">
+    <div class="bar"></div>
+    <h2>Dependency &amp; Architecture Map</h2>
+  </div>
+  <div class="depmap" id="depMap"></div>
+
+  <div class="section-title">
+    <div class="bar"></div>
+    <h2>You Are Here &mdash; Program Progress</h2>
+  </div>
+  <div class="youarehere" id="youAreHere"></div>
+
+  <footer>
+    <div class="final-note">
+      PINESCRIPT / REFERENCE DEVELOPMENT<br>
+      <span class="neq">&ne;</span><br>
+      FINAL SENTRY PYTHON IMPLEMENTATION<br><br>
+      A full Macro Regime PineScript is NOT required for this reference program.<br>
+      Pine/reference engines are technical reference surfaces that will later be<br>
+      translated / validated against the Python Sentry implementation.
+    </div>
+    <div class="footer-meta">V1 &bull; self-contained &bull; edit ENGINES / NON_PINE arrays in-file to update baseline &bull; local status edits persist in this browser only</div>
+  </footer>
+
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal" id="modalBody"></div>
+</div>
+
+<script>
+/* =========================================================================
+   EDIT DATA HERE
+   -------------------------------------------------------------------------
+   Everything Giovani / Franco need to update the baseline program state
+   lives in the two arrays below: ENGINES (Pine/reference engines) and
+   NON_PINE (Python / data / integration components).
+
+   Editable per-item fields:
+     status, owner, version, notes, blockers, lastUpdated, referenceFile
+
+   Changing these arrays updates the dashboard's baseline the next time the
+   file is opened fresh (i.e. with no browser localStorage overrides saved
+   yet, or after pressing "Reset Demo Data").
+   ========================================================================= */
+
+const STATUS_VALUES = [
+  'PLANNED',
+  'IN DEVELOPMENT',
+  'READY FOR REVIEW',
+  'REFERENCE COMPLETE',
+  'TECHNICAL FRONT HARDENING',
+  'TECHNICAL FRONT ACCEPTED',
+  'SUPERSEDED',
+  'NOT REQUIRED FOR V1',
+  'BLOCKED'
+];
+
+const ENGINES = [
+  {
+    id: 'smt',
+    name: 'SMT ENGINE',
+    group: 'A',
+    category: 'STRUCTURE REFERENCE',
+    filterTags: ['STRUCTURE'],
+    badge: null,
+    status: 'PLANNED',
+    owner: '',
+    version: '',
+    referenceFile: '',
+    lastUpdated: '',
+    dependencies: 'None',
+    downstreamConsumer: 'Structure alignment reference (not a Macro Regime vote)',
+    purpose: 'Track and validate SMT behavior as a technical reference for Sentry structure interpretation.',
+    referenceBoundary: 'SMT is NOT a core Macro Regime classifier input. Macro Regime may later interpret alignment/conflict with SMT, but isolated SMT must not define Macro Regime.',
+    buildNotes: '',
+    blockers: '',
+    nextAction: 'Begin SMT reference build',
+    technicalFrontStatus: 'NOT STARTED',
+    goldenVectorEligibility: 'NOT EVALUATED'
+  },
+  {
+    id: 'dxy',
+    name: 'DXY ENGINE',
+    group: 'A',
+    category: 'MACRO PRESSURE INPUT',
+    filterTags: ['MACRO'],
+    badge: 'V1 REQUIRED',
+    status: 'PLANNED',
+    owner: '',
+    version: '',
+    referenceFile: '',
+    lastUpdated: '',
+    dependencies: 'None',
+    downstreamConsumer: 'Future DXYCoreReceiptV1 -> Macro Pressure -> Macro Regime',
+    purpose: 'Produce the DXY technical-reference behavior that will later be translated / implemented into the Sentry runtime contract.',
+    referenceBoundary: 'DXY REFERENCE -> future DXY implementation / DXYCoreReceiptV1 -> Macro Pressure -> Macro Regime.',
+    buildNotes: '',
+    blockers: '',
+    nextAction: 'Begin DXY reference build',
+    technicalFrontStatus: 'NOT STARTED',
+    goldenVectorEligibility: 'NOT EVALUATED'
+  },
+  {
+    id: 'bond',
+    name: 'BOND ENGINE',
+    group: 'A',
+    category: 'MACRO PRESSURE INPUT',
+    filterTags: ['MACRO'],
+    badge: 'V1 REQUIRED',
+    status: 'PLANNED',
+    owner: '',
+    version: '',
+    referenceFile: '',
+    lastUpdated: '',
+    dependencies: 'US10Y Helper Engine',
+    downstreamConsumer: 'Future BondRegimeReceiptV1 -> Macro Pressure -> Macro Regime',
+    purpose: 'Produce Bond Regime reference behavior from Treasury/rates context.',
+    referenceBoundary: 'TREASURY / RATES + US10Y HELPER -> BOND ENGINE -> future BondRegimeReceiptV1 -> Macro Pressure -> Macro Regime.',
+    buildNotes: '',
+    blockers: '',
+    nextAction: 'Begin Bond reference build',
+    technicalFrontStatus: 'NOT STARTED',
+    goldenVectorEligibility: 'NOT EVALUATED'
+  },
+  {
+    id: 'us10y',
+    name: 'US10Y HELPER ENGINE',
+    group: 'A',
+    category: 'BOND ENGINE HELPER',
+    filterTags: ['HELPERS'],
+    badge: 'V1 REQUIRED HELPER',
+    status: 'PLANNED',
+    owner: '',
+    version: '',
+    referenceFile: '',
+    lastUpdated: '',
+    dependencies: 'None',
+    downstreamConsumer: 'Bond Engine (child dependency only)',
+    purpose: 'Provide yield/rates impulse/context used by Bond Engine validation.',
+    referenceBoundary: 'US10Y is NOT a separate independent Macro Regime vote. It is supporting evidence inside the Bond / rates branch.',
+    buildNotes: '',
+    blockers: '',
+    nextAction: 'Begin US10Y helper build',
+    technicalFrontStatus: 'NOT STARTED',
+    goldenVectorEligibility: 'NOT EVALUATED',
+    isChildOf: 'bond'
+  },
+  {
+    id: 'vix',
+    name: 'VIX ENGINE',
+    group: 'A',
+    category: 'MACRO REGIME QUALIFIER / FEAR-STRESS REFERENCE',
+    filterTags: ['MACRO'],
+    badge: 'V1 REQUIRED',
+    status: 'PLANNED',
+    owner: '',
+    version: '',
+    referenceFile: '',
+    lastUpdated: '',
+    dependencies: 'None',
+    downstreamConsumer: 'Future VixReceiptV1 -> Macro Regime qualifier branch',
+    purpose: 'Produce deterministic VIX fear / behavior reference states.',
+    referenceBoundary: 'VIX must not emit or own the final Macro Regime RiskOn / RiskOff classification.',
+    buildNotes: '',
+    blockers: '',
+    nextAction: 'Begin VIX reference build',
+    technicalFrontStatus: 'NOT STARTED',
+    goldenVectorEligibility: 'NOT EVALUATED'
+  },
+  {
+    id: 'ibstate',
+    name: 'IB STATE ENGINE',
+    group: 'A',
+    category: 'ROTATION UPSTREAM REFERENCE',
+    filterTags: ['STRUCTURE'],
+    badge: 'V1 REQUIRED FOR ROTATION',
+    status: 'PLANNED',
+    owner: '',
+    version: '',
+    referenceFile: '',
+    lastUpdated: '',
+    dependencies: 'None',
+    downstreamConsumer: 'Rotation Engine',
+    purpose: 'Produce / validate ES, NQ, and YM Initial Balance state behavior required by Rotation.',
+    referenceBoundary: 'ES / NQ / YM IB STATE -> IbInstrumentBundleReceiptV1-equivalent reference behavior -> ROTATION ENGINE.',
+    buildNotes: '',
+    blockers: '',
+    nextAction: 'Begin IB State reference build',
+    technicalFrontStatus: 'NOT STARTED',
+    goldenVectorEligibility: 'NOT EVALUATED'
+  },
+  {
+    id: 'rotation',
+    name: 'ROTATION ENGINE',
+    group: 'A',
+    category: 'MACRO REGIME INPUT',
+    filterTags: ['MACRO'],
+    badge: 'V1 REQUIRED',
+    status: 'PLANNED',
+    owner: '',
+    version: '',
+    referenceFile: '',
+    lastUpdated: '',
+    dependencies: 'IB State Engine (ES / NQ / YM)',
+    downstreamConsumer: 'Future RotationCoreReceiptV1 -> Macro Regime',
+    purpose: 'Validate leadership / breadth / handoff / fade / instability behavior across ES, NQ, and YM.',
+    referenceBoundary: 'ES / NQ / YM IB REFERENCES -> ROTATION ENGINE -> future RotationCoreReceiptV1 -> Macro Regime.',
+    buildNotes: '',
+    blockers: '',
+    nextAction: 'Begin Rotation reference build',
+    technicalFrontStatus: 'NOT STARTED',
+    goldenVectorEligibility: 'NOT EVALUATED'
+  },
+  {
+    id: 'structure4h',
+    name: '4H EQUITY STRUCTURE / STRUCTURE-PATTERN REFERENCE',
+    group: 'B',
+    category: 'OPTIONAL MACRO REGIME EVIDENCE',
+    filterTags: ['STRUCTURE', 'OPTIONAL'],
+    badge: 'OPTIONAL / LATER',
+    status: 'NOT REQUIRED FOR V1',
+    owner: '',
+    version: '',
+    referenceFile: '',
+    lastUpdated: '',
+    dependencies: 'None',
+    downstreamConsumer: 'Optional future structure-pattern receipt (if activated)',
+    purpose: 'Provide a technical reference for the future optional 4H structure-pattern receipt if the V1 implementation elects to activate that evidence surface.',
+    referenceBoundary: 'Do NOT confuse this with standalone SMT. Do NOT make it a prerequisite for the core Macro Regime unless current governing architecture explicitly promotes it from optional.',
+    buildNotes: '',
+    blockers: '',
+    nextAction: 'Deferred',
+    technicalFrontStatus: 'NOT STARTED',
+    goldenVectorEligibility: 'NOT EVALUATED'
+  }
+];
+
+const NON_PINE = [
+  {
+    id: 'cot',
+    name: 'COT V1 / COT RECEIPT',
+    status: 'SPEC / DATA PIPELINE — NON-PINE',
+    purpose: 'Weekly high-order positioning evidence.',
+    referenceBoundary: 'Non-Pine data-pipeline component. Not counted as a missing Pine script.'
+  },
+  {
+    id: 'oi',
+    name: 'OPEN INTEREST / PRIOR-SESSION OI RECEIPT',
+    status: 'SPEC / DATA PIPELINE — NON-PINE',
+    purpose: 'EOD / prior-session participation evidence.',
+    referenceBoundary: 'Non-Pine data-pipeline component. Not counted as a missing Pine script.'
+  },
+  {
+    id: 'macropressure',
+    name: 'MACRO PRESSURE ENGINE',
+    status: 'FUTURE PYTHON INTEGRATION',
+    purpose: 'DXYCoreReceiptV1 + BondRegimeReceiptV1 -> MacroPressureCoreReceiptV1.',
+    referenceBoundary: 'Do not count DXY + Bond + Macro Pressure as three independent votes.'
+  },
+  {
+    id: 'macroregime',
+    name: 'MACRO REGIME ENGINE',
+    status: 'FUTURE PYTHON INTEGRATION',
+    purpose: 'bounded COT receipt + native prior-session OI receipt + MacroPressureCoreReceiptV1 + VixReceiptV1 + RotationCoreReceiptV1 + optional structure-pattern receipt -> versioned adapters -> selected-evidence manifest -> family resolver -> archetype resolver -> transition lifecycle -> Macro Regime publication.',
+    referenceBoundary: 'A full Macro Regime PineScript is NOT required for this reference program.'
+  }
+];
+
+/* ======================= END EDIT DATA HERE ======================= */
+
+const STORAGE_KEY = 'sentryPineDashboardState_v1';
+
+// Defensive HTML escaping so free-text edits (notes, blockers, owner, etc.)
+// can safely contain quotes, ampersands, or angle brackets without breaking
+// the page's markup.
+function esc(s){
+  return String(s === undefined || s === null ? '' : s)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
+}
+
+function statusClass(status){
+  return 'status-' + status.replace(/[^A-Z0-9]+/gi,'_').toUpperCase();
+}
+
+function loadOverrides(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  }catch(e){ return {}; }
+}
+function saveOverrides(overrides){
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(overrides)); }catch(e){}
+}
+
+let overrides = loadOverrides();
+let activeFilter = 'ALL';
+
+function mergedEngine(base){
+  const o = overrides[base.id] || {};
+  return Object.assign({}, base, o);
+}
+
+function getAllMerged(){
+  return ENGINES.map(mergedEngine);
+}
+
+function renderSummary(){
+  const all = getAllMerged();
+  const total = all.length;
+  const v1req = all.filter(e => e.badge && e.badge.indexOf('V1 REQUIRED') === 0).length;
+  const inDev = all.filter(e => e.status === 'IN DEVELOPMENT').length;
+  const complete = all.filter(e => e.status === 'REFERENCE COMPLETE' || e.status === 'TECHNICAL FRONT ACCEPTED').length;
+  const tfAccepted = all.filter(e => e.status === 'TECHNICAL FRONT ACCEPTED').length;
+  const blocked = all.filter(e => e.status === 'BLOCKED').length;
+
+  const stats = [
+    ['Total Reference Engines', total, false],
+    ['V1 Required', v1req, false],
+    ['In Development', inDev, false],
+    ['Reference Complete', complete, false],
+    ['Technical Front Accepted', tfAccepted, false],
+    ['Blocked', blocked, true]
+  ];
+
+  document.getElementById('summaryStats').innerHTML = stats.map(function(s){
+    return '<div class="stat'+(s[2] && s[1] > 0 ? ' blocked' : '')+'">'+
+      '<div class="num">'+s[1]+'</div>'+
+      '<div class="lbl">'+s[0]+'</div>'+
+    '</div>';
+  }).join('');
+}
+
+const FILTERS = ['ALL','V1 REQUIRED','IN DEVELOPMENT','COMPLETE','MACRO','STRUCTURE','HELPERS','PYTHON / NON-PINE','OPTIONAL'];
+
+function renderFilters(){
+  document.getElementById('filterBar').innerHTML = FILTERS.map(function(f){
+    return '<div class="filter-pill'+(f===activeFilter?' active':'')+'" data-filter="'+f+'">'+f+'</div>';
+  }).join('');
+  document.querySelectorAll('.filter-pill').forEach(function(el){
+    el.addEventListener('click', function(){
+      activeFilter = el.getAttribute('data-filter');
+      renderAll();
+    });
+  });
+}
+
+function matchesFilter(e, isNonPine){
+  if(activeFilter === 'ALL') return true;
+  if(activeFilter === 'PYTHON / NON-PINE') return !!isNonPine;
+  if(isNonPine) return false;
+  if(activeFilter === 'V1 REQUIRED') return !!(e.badge && e.badge.indexOf('V1 REQUIRED') === 0);
+  if(activeFilter === 'IN DEVELOPMENT') return e.status === 'IN DEVELOPMENT';
+  if(activeFilter === 'COMPLETE') return e.status === 'REFERENCE COMPLETE' || e.status === 'TECHNICAL FRONT ACCEPTED';
+  if(activeFilter === 'OPTIONAL') return e.group === 'B' || (e.filterTags||[]).indexOf('OPTIONAL') !== -1;
+  return (e.filterTags||[]).indexOf(activeFilter) !== -1;
+}
+
+function cardHTML(e){
+  var badgeHTML = e.badge ? '<span class="badge '+(e.badge.indexOf('OPTIONAL')!==-1?'optional':'required')+'">'+esc(e.badge)+'</span>' : '';
+  var classes = 'card';
+  if(e.isChildOf) classes += ' child-card';
+  if(e.group === 'B') classes += ' optional-card';
+  return '<div class="'+classes+'" data-id="'+esc(e.id)+'">'+
+    '<div class="card-top">'+
+      '<div>'+
+        '<div class="card-name">'+esc(e.name)+'</div>'+
+        '<div class="card-category">'+esc(e.category)+'</div>'+
+      '</div>'+
+      badgeHTML+
+    '</div>'+
+    '<span class="status-pill '+statusClass(e.status)+'">'+esc(e.status)+'</span>'+
+    '<div class="card-purpose">'+esc(e.purpose)+'</div>'+
+    '<div class="card-footer"><span>'+esc(e.owner||'owner: unassigned')+'</span><span>'+(e.version?('v'+esc(e.version)):'')+'</span></div>'+
+  '</div>';
+}
+
+function nonPineCardHTML(e){
+  return '<div class="card nonpine-card" data-id="'+esc(e.id)+'" data-nonpine="1">'+
+    '<div class="card-top">'+
+      '<div>'+
+        '<div class="card-name">'+esc(e.name)+'</div>'+
+        '<div class="nonpine-tag">'+esc(e.status)+'</div>'+
+      '</div>'+
+    '</div>'+
+    '<div class="card-purpose">'+esc(e.purpose)+'</div>'+
+  '</div>';
+}
+
+function renderGrids(){
+  var all = getAllMerged();
+  var groupA = all.filter(function(e){ return e.group === 'A' && matchesFilter(e,false); });
+  var groupB = all.filter(function(e){ return e.group === 'B' && matchesFilter(e,false); });
+  var nonPine = NON_PINE.filter(function(e){ return matchesFilter(e,true); });
+
+  document.getElementById('groupAGrid').innerHTML = groupA.map(cardHTML).join('') || emptyMsg();
+  document.getElementById('groupBGrid').innerHTML = groupB.map(cardHTML).join('') || emptyMsg();
+  document.getElementById('nonPineGrid').innerHTML = nonPine.map(nonPineCardHTML).join('') || emptyMsg();
+
+  document.getElementById('groupACount').textContent = groupA.length + ' shown';
+  document.getElementById('groupBCount').textContent = groupB.length + ' shown';
+
+  document.querySelectorAll('.card').forEach(function(el){
+    el.addEventListener('click', function(){
+      openModal(el.getAttribute('data-id'), el.getAttribute('data-nonpine') === '1');
+    });
+  });
+}
+
+function emptyMsg(){
+  return '<div style="font-family:var(--mono);font-size:11px;color:var(--gray-dim);padding:10px 2px;">No items match this filter.</div>';
+}
+
+function fieldBlock(label, value){
+  return '<div class="field"><label>'+esc(label)+'</label><div class="val">'+(value && value.length ? esc(value) : '<span style="color:var(--gray-dim);">&mdash;</span>')+'</div></div>';
+}
+
+function openModal(id, isNonPine){
+  var overlay = document.getElementById('modalOverlay');
+  var body = document.getElementById('modalBody');
+
+  if(isNonPine){
+    var np = NON_PINE.find(function(x){ return x.id === id; });
+    body.innerHTML =
+      '<button class="modal-close" id="modalCloseBtn">&times;</button>'+
+      '<h3>'+esc(np.name)+'</h3>'+
+      '<div class="modal-category">NON-PINE COMPONENT</div>'+
+      '<div class="modal-grid">'+
+        fieldBlock('Status', np.status)+
+        fieldBlock('Reference Boundary', np.referenceBoundary)+
+        '<div class="field full">'+fieldBlock('Purpose', np.purpose)+'</div>'+
+      '</div>'+
+      '<div class="modal-save-note">Non-Pine components are tracked here for context only; they are Python / data-pipeline items, not Pine reference engines.</div>';
+    overlay.classList.add('open');
+    document.getElementById('modalCloseBtn').addEventListener('click', closeModal);
+    return;
+  }
+
+  var base = ENGINES.find(function(x){ return x.id === id; });
+  var e = mergedEngine(base);
+
+  var statusOptions = STATUS_VALUES.map(function(s){
+    return '<option value="'+esc(s)+'"'+(s===e.status?' selected':'')+'>'+esc(s)+'</option>';
+  }).join('');
+
+  body.innerHTML =
+    '<button class="modal-close" id="modalCloseBtn">&times;</button>'+
+    '<h3>'+esc(e.name)+'</h3>'+
+    '<div class="modal-category">'+esc(e.category)+(e.badge ? ' &bull; '+esc(e.badge) : '')+'</div>'+
+
+    '<div class="modal-grid">'+
+      '<div class="field"><label>Status</label><select id="f_status">'+statusOptions+'</select></div>'+
+      '<div class="field"><label>V1 Requirement</label><div class="val">'+esc(e.badge || 'Not marked V1-required')+'</div></div>'+
+      '<div class="field"><label>Owner</label><input id="f_owner" type="text" value="'+esc(e.owner||'')+'" placeholder="unassigned"></div>'+
+      '<div class="field"><label>Current Version</label><input id="f_version" type="text" value="'+esc(e.version||'')+'" placeholder="e.g. v0.1"></div>'+
+      fieldBlock('Dependencies', e.dependencies)+
+      fieldBlock('Downstream Consumer', e.downstreamConsumer)+
+      '<div class="field full">'+fieldBlock('Purpose', e.purpose)+'</div>'+
+      '<div class="field full">'+fieldBlock('Reference Boundary', e.referenceBoundary)+'</div>'+
+      '<div class="field"><label>Source / File</label><input id="f_referenceFile" type="text" value="'+esc(e.referenceFile||'')+'" placeholder="e.g. kitech_dxy_v1.pine"></div>'+
+      '<div class="field"><label>Last Updated</label><input id="f_lastUpdated" type="date" value="'+esc(e.lastUpdated||'')+'"></div>'+
+      '<div class="field full"><label>Build Notes</label><textarea id="f_buildNotes" placeholder="Notes for Giovani / Franco...">'+esc(e.buildNotes||'')+'</textarea></div>'+
+      '<div class="field full"><label>Blockers</label><textarea id="f_blockers" placeholder="None">'+esc(e.blockers||'')+'</textarea></div>'+
+      '<div class="field"><label>Next Action</label><input id="f_nextAction" type="text" value="'+esc(e.nextAction||'')+'"></div>'+
+      '<div class="field"><label>Technical Front Status</label><input id="f_technicalFrontStatus" type="text" value="'+esc(e.technicalFrontStatus||'')+'"></div>'+
+      '<div class="field full"><label>Golden Vector Eligibility</label><input id="f_goldenVectorEligibility" type="text" value="'+esc(e.goldenVectorEligibility||'')+'" placeholder="NOT EVALUATED"></div>'+
+    '</div>'+
+
+    '<div class="modal-save-note">Edits here are saved to this browser\'s local storage only (demo/working notes), not to the file itself. Use "Reset Demo Data" to clear all local edits and return to baseline.</div>';
+
+  overlay.classList.add('open');
+  document.getElementById('modalCloseBtn').addEventListener('click', closeModal);
+
+  var editableIds = ['status','owner','version','referenceFile','lastUpdated','buildNotes','blockers','nextAction','technicalFrontStatus','goldenVectorEligibility'];
+  editableIds.forEach(function(key){
+    var el = document.getElementById('f_'+key);
+    if(!el) return;
+    el.addEventListener('change', function(){
+      if(!overrides[id]) overrides[id] = {};
+      overrides[id][key] = el.value;
+      saveOverrides(overrides);
+      renderAll();
+    });
+  });
+}
+
+function closeModal(){
+  document.getElementById('modalOverlay').classList.remove('open');
+}
+document.getElementById('modalOverlay').addEventListener('click', function(ev){
+  if(ev.target === this) closeModal();
+});
+document.addEventListener('keydown', function(ev){
+  if(ev.key === 'Escape') closeModal();
+});
+
+document.getElementById('resetBtn').addEventListener('click', function(){
+  if(confirm('Reset all local demo edits (status/owner/notes/etc.) back to baseline? This only affects this browser.')){
+    overrides = {};
+    saveOverrides(overrides);
+    renderAll();
+  }
+});
+
+document.getElementById('expandAllBtn').addEventListener('click', function(){
+  alert('STATUS LEGEND\n\nPLANNED — not started\nIN DEVELOPMENT — actively being built\nREADY FOR REVIEW — build finished, awaiting review\nREFERENCE COMPLETE — validated technical reference\nTECHNICAL FRONT HARDENING — under Technical Front review\nTECHNICAL FRONT ACCEPTED — passed Technical Front acceptance\nSUPERSEDED — replaced by a newer reference\nNOT REQUIRED FOR V1 — optional / deferred\nBLOCKED — cannot proceed, see Blockers field\n\nClick any engine card to view/edit full detail.');
+});
+
+/* ---------- DEPENDENCY MAP ---------- */
+function depNodeHTML(id, label, extraClass){
+  return '<span class="depnode'+(extraClass?(' '+extraClass):'')+'" data-depid="'+id+'">'+label+'</span>';
+}
+
+function renderDepMap(){
+  var html = '';
+  html += '<div class="depmap-row">'+
+    depNodeHTML('dxy','DXY')+'<span class="deparrow">&rarr;</span>'+
+    depNodeHTML('macropressure','MACRO PRESSURE','python')+'<span class="deparrow">&rarr;</span>'+
+    depNodeHTML('macroregime','MACRO REGIME [PYTHON]','python terminal')+
+  '</div>';
+  html += '<div class="depmap-row">'+
+    depNodeHTML('us10y','US10Y','helper')+'<span class="deparrow">&rarr;</span>'+
+    depNodeHTML('bond','BOND')+'<span class="deparrow">&rarr;</span>'+
+    depNodeHTML('macropressure','MACRO PRESSURE','python')+
+  '</div>';
+  html += '<div class="depmap-row">'+
+    depNodeHTML('vix','VIX')+'<span class="deparrow">&rarr;</span>'+
+    depNodeHTML('macroregime','MACRO REGIME [PYTHON]','python terminal')+
+  '</div>';
+  html += '<div class="depmap-row">'+
+    depNodeHTML('ibstate','IB STATE')+'<span class="deparrow">&rarr;</span>'+
+    depNodeHTML('rotation','ROTATION')+'<span class="deparrow">&rarr;</span>'+
+    depNodeHTML('macroregime','MACRO REGIME [PYTHON]','python terminal')+
+  '</div>';
+  html += '<div class="depmap-row">'+
+    depNodeHTML('cot','COT [DATA/PYTHON]','python')+'<span class="deparrow">&rarr;</span>'+
+    depNodeHTML('macroregime','MACRO REGIME [PYTHON]','python terminal')+
+  '</div>';
+  html += '<div class="depmap-row">'+
+    depNodeHTML('oi','OI [DATA/PYTHON]','python')+'<span class="deparrow">&rarr;</span>'+
+    depNodeHTML('macroregime','MACRO REGIME [PYTHON]','python terminal')+
+  '</div>';
+  html += '<div class="depmap-row">'+
+    depNodeHTML('smt','SMT')+'<span class="deparrow">&rarr;</span>'+
+    '<span style="font-family:var(--mono);font-size:11px;color:var(--gray-dim);">STRUCTURE REFERENCE / DOWNSTREAM ALIGNMENT &mdash; NOT A CORE MACRO REGIME VOTE</span>'+
+  '</div>';
+  html += '<div class="depmap-row">'+
+    depNodeHTML('structure4h','4H STRUCTURE (OPTIONAL)','optional')+'<span class="deparrow">&rarr;</span>'+
+    '<span style="font-family:var(--mono);font-size:11px;color:var(--gray-dim);">dashed / optional input if enabled</span>'+
+  '</div>';
+  html += '<div class="depnote">Arrows show evidence flow, not a vote count. DXY + Bond feed one Macro Pressure surface (not two separate votes). Click any node to open its detail.</div>';
+
+  document.getElementById('depMap').innerHTML = html;
+
+  document.querySelectorAll('.depnode').forEach(function(el){
+    el.addEventListener('click', function(){
+      var id = el.getAttribute('data-depid');
+      var isNonPine = !!NON_PINE.find(function(x){ return x.id === id; });
+      openModal(id, isNonPine);
+    });
+  });
+}
+
+/* ---------- YOU ARE HERE ---------- */
+var STAGE_ORDER = ['PLANNED','IN DEVELOPMENT','READY FOR REVIEW','REFERENCE COMPLETE','TECHNICAL FRONT HARDENING','TECHNICAL FRONT ACCEPTED'];
+var OFF_PATH_STATUSES = ['BLOCKED','SUPERSEDED','NOT REQUIRED FOR V1'];
+
+var SHORT_LABEL = {
+  smt: 'SMT',
+  dxy: 'DXY',
+  bond: 'BOND',
+  us10y: 'US10Y',
+  vix: 'VIX',
+  ibstate: 'IB STATE',
+  rotation: 'ROTATION',
+  structure4h: '4H STRUCT'
+};
+
+function isV1Required(e){
+  return !!(e.badge && e.badge.indexOf('V1 REQUIRED') === 0);
+}
+
+function renderYouAreHere(){
+  var all = getAllMerged(); // ENGINES only (Pine references)
+
+  var onPath = all.filter(function(e){ return OFF_PATH_STATUSES.indexOf(e.status) === -1; });
+  var offPath = all.filter(function(e){ return OFF_PATH_STATUSES.indexOf(e.status) !== -1; });
+
+  var requiredEngines = all.filter(isV1Required);
+  var requiredBlocked = requiredEngines.filter(function(e){ return e.status === 'BLOCKED'; });
+  var requiredOnPath = requiredEngines.filter(function(e){ return OFF_PATH_STATUSES.indexOf(e.status) === -1; });
+
+  var bottleneckIndex = 0;
+  var bottleneckEngines = [];
+  if(requiredOnPath.length){
+    var indices = requiredOnPath.map(function(e){ return STAGE_ORDER.indexOf(e.status); });
+    bottleneckIndex = Math.min.apply(null, indices);
+    bottleneckEngines = requiredOnPath.filter(function(e){ return STAGE_ORDER.indexOf(e.status) === bottleneckIndex; });
+  }
+
+  var stagesHTML = STAGE_ORDER.map(function(stageName, idx){
+    var enginesHere = onPath.filter(function(e){ return e.status === stageName; });
+    var reached = idx <= bottleneckIndex;
+    var isBottleneck = idx === bottleneckIndex && requiredOnPath.length > 0 && requiredBlocked.length === 0;
+    var isBlockedHere = requiredBlocked.length > 0 && idx === bottleneckIndex;
+
+    var classes = 'yah-stage' + (reached ? ' reached' : '') + (isBottleneck ? ' bottleneck' : '') + (isBlockedHere ? ' blocked' : '');
+    var marker = '';
+    if(isBottleneck){ marker = '<div class="yah-marker">YOU ARE HERE</div>'; }
+    if(isBlockedHere){ marker = '<div class="yah-marker blocked">BLOCKED HERE</div>'; }
+
+    var chips = enginesHere.map(function(e){
+      return '<span class="yah-chip'+(isV1Required(e)?' required':'')+'" data-id="'+esc(e.id)+'">'+esc(SHORT_LABEL[e.id]||e.name)+'</span>';
+    }).join('');
+
+    return '<div class="'+classes+'">'+
+      marker+
+      '<div class="yah-dot"></div>'+
+      '<div class="yah-stage-label">'+esc(stageName)+'</div>'+
+      '<div class="yah-chips">'+chips+'</div>'+
+    '</div>';
+  }).join('');
+
+  var summaryHTML;
+  if(requiredEngines.length === 0){
+    summaryHTML = 'No V1-required engines defined yet.';
+  } else if(requiredBlocked.length > 0){
+    var blockedNames = requiredBlocked.map(function(e){ return esc(SHORT_LABEL[e.id]||e.name); }).join(', ');
+    summaryHTML = '<span class="hl blocked">BLOCKED</span> &mdash; held up by: '+blockedNames+'. Resolve blockers to continue.';
+  } else if(bottleneckIndex >= STAGE_ORDER.length - 1 && bottleneckEngines.length === requiredOnPath.length){
+    summaryHTML = 'All V1-required engines have reached <span class="hl">'+esc(STAGE_ORDER[bottleneckIndex])+'</span>.';
+  } else {
+    var names = bottleneckEngines.map(function(e){ return esc(SHORT_LABEL[e.id]||e.name); }).join(', ');
+    summaryHTML = 'Program bottleneck: <span class="hl">'+esc(STAGE_ORDER[bottleneckIndex])+'</span> &mdash; waiting on: '+names+' ('+bottleneckEngines.length+' of '+requiredEngines.length+' V1-required engines).';
+  }
+
+  var offPathHTML = '';
+  if(offPath.length){
+    offPathHTML = '<div class="yah-offpath">Off-path (not part of the linear pipeline): '+
+      offPath.map(function(e){
+        return '<span class="yah-chip" data-id="'+esc(e.id)+'">'+esc(SHORT_LABEL[e.id]||e.name)+' &mdash; '+esc(e.status)+'</span>';
+      }).join(' ')+
+    '</div>';
+  }
+
+  document.getElementById('youAreHere').innerHTML =
+    '<div class="yah-track">'+stagesHTML+'</div>'+
+    '<div class="yah-summary">'+summaryHTML+'</div>'+
+    offPathHTML;
+
+  document.querySelectorAll('.yah-chip').forEach(function(el){
+    el.addEventListener('click', function(){
+      openModal(el.getAttribute('data-id'), false);
+    });
+  });
+}
+
+function renderAll(){
+  renderSummary();
+  renderFilters();
+  renderGrids();
+  renderDepMap();
+  renderYouAreHere();
+}
+
+renderAll();
+
+/* =========================================================================
+   BACKGROUND: starfield dust + side "matrix" digital rain
+   ========================================================================= */
+(function backgroundFX(){
+  var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function sizeCanvas(cv, w, h){
+    var dpr = window.devicePixelRatio || 1;
+    cv.width = w * dpr;
+    cv.height = h * dpr;
+    cv.style.width = w + 'px';
+    cv.style.height = h + 'px';
+    var ctx = cv.getContext('2d');
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    return ctx;
+  }
+
+  /* ---- starfield ---- */
+  var starCv = document.getElementById('starfield');
+  var starCtx;
+  var stars = [];
+
+  function initStars(){
+    var w = window.innerWidth, h = window.innerHeight;
+    starCtx = sizeCanvas(starCv, w, h);
+    var count = Math.floor((w*h) / 9000);
+    stars = [];
+    for(var i=0;i<count;i++){
+      stars.push({
+        x: Math.random()*w,
+        y: Math.random()*h,
+        r: Math.random()*1.3 + 0.2,
+        baseA: Math.random()*0.5 + 0.15,
+        phase: Math.random()*Math.PI*2,
+        speed: Math.random()*0.015 + 0.004
+      });
+    }
+  }
+
+  function drawStars(t){
+    var w = window.innerWidth, h = window.innerHeight;
+    starCtx.clearRect(0,0,w,h);
+    for(var i=0;i<stars.length;i++){
+      var s = stars[i];
+      var tw = reduceMotion ? s.baseA : s.baseA + Math.sin(t*s.speed + s.phase)*0.15;
+      starCtx.beginPath();
+      starCtx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+      starCtx.fillStyle = 'rgba(255,255,255,'+Math.max(0,Math.min(1,tw))+')';
+      starCtx.fill();
+    }
+  }
+
+  /* ---- matrix rain (side columns) ---- */
+  // Weighted pool: 0/1 appear often (classic digital rain), plus the
+  // individual letters of KITECH and SENTRY (deduped), each falling on
+  // its own in random order/position -- not spelling the words in sequence.
+  var chars = ['0','1','0','1','0','1','0','1','K','I','T','E','C','H','S','N','R','Y'];
+  var RAIN_FONT = "'Consolas','SFMono-Regular','Cascadia Code','Courier New',monospace";
+
+  // Rain color cycles every 20 minutes: orange -> cyan -> matrix green -> (repeats).
+  var RAIN_CYCLE_MS = 20 * 60 * 1000;
+  var RAIN_COLORS = ['255,122,0', '0,229,255', '0,255,65']; // orange, cyan, matrix green
+  var rainStartTime = Date.now();
+  function currentRainColor(){
+    var elapsed = Date.now() - rainStartTime;
+    var phase = Math.floor(elapsed / RAIN_CYCLE_MS) % RAIN_COLORS.length;
+    return 'rgba('+RAIN_COLORS[phase]+',0.75)';
+  }
+
+  var CHAR_HOLD_MS = 1000; // each falling glyph only changes once per second
+
+  function makeRain(cvId){
+    var cv = document.getElementById(cvId);
+    var w = 150, h = window.innerHeight;
+    var ctx = sizeCanvas(cv, w, h);
+    var fontSize = 18;
+    var columns = Math.floor(w / fontSize);
+    var drops = [];
+    var glyph = [];
+    var nextChangeAt = [];
+    for(var i=0;i<columns;i++){
+      drops[i] = Math.random() * -50;
+      glyph[i] = chars[Math.floor(Math.random()*chars.length)];
+      nextChangeAt[i] = Date.now() + Math.random()*CHAR_HOLD_MS; // stagger so columns don't flip in unison
+    }
+
+    function draw(){
+      var now = Date.now();
+      ctx.fillStyle = 'rgba(0,0,0,0.15)';
+      ctx.fillRect(0,0,w,h);
+      ctx.font = 'bold ' + fontSize + 'px ' + RAIN_FONT;
+      ctx.textBaseline = 'top';
+      var color = currentRainColor();
+      for(var i=0;i<drops.length;i++){
+        if(now >= nextChangeAt[i]){
+          glyph[i] = chars[Math.floor(Math.random()*chars.length)];
+          nextChangeAt[i] = now + CHAR_HOLD_MS;
+        }
+        var x = i*fontSize + 2;
+        var y = drops[i]*fontSize;
+        ctx.fillStyle = color;
+        ctx.fillText(glyph[i], x, y);
+        if(y > h && Math.random() > 0.975){
+          drops[i] = 0;
+        }
+        drops[i] += 0.09;
+      }
+    }
+    return { draw: draw, resize: function(){ ctx = sizeCanvas(cv, w, window.innerHeight); h = window.innerHeight; } };
+  }
+
+  var rainLeft = makeRain('rainLeft');
+  var rainRight = makeRain('rainRight');
+
+  function loop(t){
+    drawStars(t);
+    if(!reduceMotion){
+      rainLeft.draw();
+      rainRight.draw();
+    }
+    requestAnimationFrame(loop);
+  }
+
+  initStars();
+  window.addEventListener('resize', function(){
+    initStars();
+    rainLeft.resize();
+    rainRight.resize();
+  });
+
+  requestAnimationFrame(loop);
+})();
+</script>
+
+</body>
+</html>
