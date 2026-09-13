@@ -19,6 +19,7 @@
     --gray: #8a8f94;
     --gray-dim: #5c6166;
     --red: #ff3b3b;
+    --purple: #B266FF;
     --mono: 'Consolas','SFMono-Regular','Cascadia Code','Courier New',monospace;
     --sans: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
   }
@@ -107,8 +108,36 @@
 
   .header-actions{
     display:flex;
+    flex-direction:column;
+    align-items:flex-end;
+    gap:8px;
+  }
+  .header-actions-row{
+    display:flex;
     align-items:center;
     gap:10px;
+  }
+  .s-toggle{
+    background:none;
+    border:none;
+    color:var(--red);
+    font-family:var(--mono);
+    font-weight:700;
+    font-size:13px;
+    cursor:pointer;
+    padding:2px 4px;
+    opacity:0.55;
+    transition:all .15s ease;
+  }
+  .s-toggle:hover{
+    opacity:1;
+  }
+  .s-toggle.playing{
+    color:var(--purple);
+    opacity:0.85;
+  }
+  .s-toggle.playing:hover{
+    opacity:1;
   }
 
   button.ctrl-btn{
@@ -650,6 +679,8 @@
 <canvas class="bg-layer" id="rainLeft"></canvas>
 <canvas class="bg-layer" id="rainRight"></canvas>
 
+<audio id="bgAudio" src="theme.wav" loop preload="auto"></audio>
+
 <div class="page">
 
   <header>
@@ -659,8 +690,11 @@
       <div class="subheader">KITECH / SENTRY &bull; V1 TECHNICAL FRONT</div>
     </div>
     <div class="header-actions">
-      <button class="ctrl-btn" id="expandAllBtn">Expand Legend</button>
-      <button class="ctrl-btn warn" id="resetBtn">Reset Demo Data</button>
+      <div class="header-actions-row">
+        <button class="ctrl-btn" id="expandAllBtn">Expand Legend</button>
+        <button class="ctrl-btn warn" id="resetBtn">Reset Demo Data</button>
+      </div>
+      <button class="s-toggle" id="audioToggle" title="Toggle background music" aria-label="Toggle background music">S</button>
     </div>
   </header>
 
@@ -1365,6 +1399,27 @@ function renderAll(){
 }
 
 renderAll();
+
+/* =========================================================================
+   BACKGROUND AUDIO: click-to-toggle looping theme track
+   ========================================================================= */
+(function bgAudioToggle(){
+  var audio = document.getElementById('bgAudio');
+  var btn = document.getElementById('audioToggle');
+  if(!audio || !btn) return;
+  var playing = false;
+  btn.addEventListener('click', function(){
+    if(playing){
+      audio.pause();
+      btn.classList.remove('playing');
+      playing = false;
+    } else {
+      audio.play().catch(function(){});
+      btn.classList.add('playing');
+      playing = true;
+    }
+  });
+})();
 
 /* =========================================================================
    BACKGROUND: starfield dust + side "matrix" digital rain
