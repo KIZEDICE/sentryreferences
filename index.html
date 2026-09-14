@@ -20,6 +20,7 @@
     --gray-dim: #5c6166;
     --red: #ff3b3b;
     --purple: #B266FF;
+    --matrix-green: #00FF41;
     --mono: 'Consolas','SFMono-Regular','Cascadia Code','Courier New',monospace;
     --sans: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
   }
@@ -138,6 +139,35 @@
   }
   .s-toggle.playing:hover{
     opacity:1;
+  }
+  .m-toggle{
+    background:none;
+    border:none;
+    color:var(--matrix-green);
+    font-family:var(--mono);
+    font-weight:700;
+    font-size:13px;
+    cursor:pointer;
+    padding:2px 4px;
+    opacity:0.55;
+    transition:all .15s ease;
+  }
+  .m-toggle:hover{
+    opacity:1;
+  }
+  .m-toggle.playing{
+    color:var(--purple);
+    opacity:0.85;
+  }
+  .m-toggle.playing:hover{
+    opacity:1;
+  }
+  .m-toggle.locked{
+    opacity:0.2;
+    cursor:not-allowed;
+  }
+  .m-toggle.locked:hover{
+    opacity:0.2;
   }
 
   button.ctrl-btn{
@@ -680,6 +710,7 @@
 <canvas class="bg-layer" id="rainRight"></canvas>
 
 <audio id="bgAudio" src="theme.wav" loop preload="auto"></audio>
+<audio id="bgAudio2" src="theme2.mp3" loop preload="auto"></audio>
 
 <div class="page">
 
@@ -695,6 +726,7 @@
         <button class="ctrl-btn warn" id="resetBtn">Reset Demo Data</button>
       </div>
       <button class="s-toggle" id="audioToggle" title="Toggle background music" aria-label="Toggle background music">S</button>
+      <button class="m-toggle" id="audioToggle2" title="Toggle second track" aria-label="Toggle second track">M</button>
     </div>
   </header>
 
@@ -1404,21 +1436,45 @@ renderAll();
    BACKGROUND AUDIO: click-to-toggle looping theme track
    ========================================================================= */
 (function bgAudioToggle(){
-  var audio = document.getElementById('bgAudio');
-  var btn = document.getElementById('audioToggle');
-  if(!audio || !btn) return;
-  var playing = false;
-  btn.addEventListener('click', function(){
-    if(playing){
-      audio.pause();
-      btn.classList.remove('playing');
-      playing = false;
+  var audioS = document.getElementById('bgAudio');
+  var btnS = document.getElementById('audioToggle');
+  var audioM = document.getElementById('bgAudio2');
+  var btnM = document.getElementById('audioToggle2');
+  if(!audioS || !btnS || !audioM || !btnM) return;
+
+  function syncLock(){
+    if(audioS.paused){
+      btnM.classList.remove('locked');
     } else {
-      audio.play().catch(function(){});
-      btn.classList.add('playing');
-      playing = true;
+      btnM.classList.add('locked');
+    }
+  }
+
+  btnS.addEventListener('click', function(){
+    if(!audioS.paused){
+      audioS.pause();
+      btnS.classList.remove('playing');
+    } else {
+      audioM.pause();
+      btnM.classList.remove('playing');
+      audioS.play().catch(function(){});
+      btnS.classList.add('playing');
+    }
+    syncLock();
+  });
+
+  btnM.addEventListener('click', function(){
+    if(!audioS.paused) return;
+    if(!audioM.paused){
+      audioM.pause();
+      btnM.classList.remove('playing');
+    } else {
+      audioM.play().catch(function(){});
+      btnM.classList.add('playing');
     }
   });
+
+  syncLock();
 })();
 
 /* =========================================================================
@@ -1480,9 +1536,9 @@ renderAll();
   var chars = ['0','1','0','1','0','1','0','1','K','I','T','E','C','H','S','N','R','Y'];
   var RAIN_FONT = "'Consolas','SFMono-Regular','Cascadia Code','Courier New',monospace";
 
-  // Rain color cycles every 20 minutes: orange -> cyan -> matrix green -> (repeats).
-  var RAIN_CYCLE_MS = 20 * 60 * 1000;
-  var RAIN_COLORS = ['255,122,0', '0,229,255', '0,255,65']; // orange, cyan, matrix green
+  // Rain color cycles every 10 minutes: orange -> cyan -> matrix green -> yellow -> pink -> salmon -> (repeats).
+  var RAIN_CYCLE_MS = 10 * 60 * 1000;
+  var RAIN_COLORS = ['255,122,0', '0,229,255', '0,255,65', '255,212,0', '255,64,180', '250,128,114']; // orange, cyan, matrix green, yellow, pink, salmon
   var rainStartTime = Date.now();
   function currentRainColor(){
     var elapsed = Date.now() - rainStartTime;
